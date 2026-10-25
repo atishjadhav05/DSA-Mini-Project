@@ -2,8 +2,9 @@ from collections import deque
 
 
 def schedule_jobs(jobs, dependencies):
-    """Generate a valid job order or report an error."""
+    """Generate a valid job schedule or report an error."""
 
+    # Check for duplicate job names
     if len(set(jobs)) != len(jobs):
         raise ValueError("Job names must be unique.")
 
@@ -11,70 +12,80 @@ def schedule_jobs(jobs, dependencies):
     graph = {job: [] for job in jobs}
     indegree = {job: 0 for job in jobs}
 
-    # Build the adjacency list and calculate in-degrees.
+    # Build the graph and count prerequisites
     for before, after in dependencies:
         if before not in job_set or after not in job_set:
             raise ValueError(
                 f"Unknown job in dependency: {before} -> {after}"
             )
 
-        if before == after:
-            raise ValueError("A job cannot depend on itself.")
-
         graph[before].append(after)
         indegree[after] += 1
 
-    print("\nADJACENCY LIST")
-    for job in jobs:
-        print(f"{job}: {graph[job]}")
-
-    print("\nINITIAL IN-DEGREES")
-    for job in jobs:
-        print(f"{job}: {indegree[job]}")
-
-    # Queue all jobs that have no prerequisites.
+    # Add jobs with no prerequisites to the queue
     ready = deque(
         job for job in jobs if indegree[job] == 0
     )
+
     order = []
 
-    print("\nSCHEDULING PROCESS")
-
+    # Perform topological sorting
     while ready:
-        current = ready.popleft()
-        order.append(current)
+        job = ready.popleft()
+        order.append(job)
 
-        print(f"\nSelected job: {current}")
-        print(f"Current schedule: {order}")
-
-        for neighbour in graph[current]:
+        for neighbour in graph[job]:
             indegree[neighbour] -= 1
-
-            print(
-                f"Updated in-degree of {neighbour}: "
-                f"{indegree[neighbour]}"
-            )
 
             if indegree[neighbour] == 0:
                 ready.append(neighbour)
-                print(f"{neighbour} is now ready.")
 
-    # If jobs remain, a dependency cycle exists.
+    # Detect circular dependencies
     if len(order) != len(jobs):
-        remaining = [
-            job for job in jobs if indegree[job] > 0
-        ]
         raise ValueError(
-            f"Cycle detected. Unscheduled jobs: {remaining}"
+            "Cycle detected. A valid schedule cannot be created."
         )
 
     return order
 
 
-def main():
+def display_schedule(jobs, dependencies, order):
+    """Display the schedule in a clean format."""
+
+    border = "=" * 58
+
+    print("\n" + border)
+    print("              JOB SCHEDULING SYSTEM")
+    print(border)
+
+    print(f"Jobs         : {', '.join(jobs)}")
+    print(
+        "Dependencies : "
+        + ", ".join(f"{a} -> {b}" for a, b in dependencies)
+    )
+
+    print("-" * 58)
+    print("STATUS       : SUCCESS")
+    print("MESSAGE      : Valid schedule generated")
+
+    print("\nEXECUTION ORDER")
+    print("  " + "  ->  ".join(order))
+
+    print("\nSTEP-BY-STEP SCHEDULE")
+
+    for step, job in enumerate(order, start=1):
+        print(f"  {step}. Execute Job {job}")
+
+    print("-" * 58)
+    print(f"Total jobs scheduled: {len(order)}")
+    print("Dependency check    : PASSED")
+    print(border)
+
+
+if __name__ == "__main__":
+
     jobs = ["A", "B", "C", "D", "E"]
 
-    # A must finish before B, and so on.
     dependencies = [
         ("A", "B"),
         ("B", "C"),
@@ -83,33 +94,14 @@ def main():
         ("D", "E")
     ]
 
-    print("=" * 45)
-    print("       JOB SCHEDULING USING GRAPHS")
-    print("=" * 45)
-
-    print("\nJOBS")
-    print(", ".join(jobs))
-
-    print("\nDEPENDENCIES")
-    for before, after in dependencies:
-        print(f"{before} -> {after}")
-
     try:
-        order = schedule_jobs(jobs, dependencies)
-
-        print("\n" + "=" * 45)
-        print("           FINAL JOB SCHEDULE")
-        print("=" * 45)
-
-        for position, job in enumerate(order, start=1):
-            print(f"Step {position}: Execute Job {job}")
-
-        print("\nValid schedule:", " -> ".join(order))
-        print("Status: All jobs scheduled successfully.")
+        result = schedule_jobs(jobs, dependencies)
+        display_schedule(jobs, dependencies, result)
 
     except ValueError as error:
-        print("\nSCHEDULING ERROR:", error)
-
-
-if __name__ == "__main__":
-    main()
+        print("\n" + "=" * 58)
+        print("              JOB SCHEDULING SYSTEM")
+        print("=" * 58)
+        print("STATUS       : ERROR")
+        print("MESSAGE      :", error)
+        print("=" * 58)
